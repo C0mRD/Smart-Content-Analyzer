@@ -1,0 +1,42 @@
+body {
+    background-color: #f8f9fa;
+}
+
+.container {
+    max-width: 500px;
+}
+
+h1 {
+    font-size: 1.5rem;
+}
+
+.card {
+    border-radius: 8px;
+    border: 1px solid #dee2e6;
+}
+
+#recipe-list .list-group-item {
+    cursor: pointer;
+}
+
+.table thead {
+    background-color: #007bff;
+    color: white;
+}
+
+#toggleStatus {
+    font-size: 1rem;
+}
+
+input[type="text"] {
+    border-radius: 4px;
+}
+
+#toggleButton {
+    width: 50px;
+    height: 25px;
+}
+
+.tab-pane {
+    padding-top: 10px;
+}

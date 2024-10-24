@@ -1,29 +1,36 @@
 <!doctype html>
 <html>
     <head>
-        <title>Selected Components</title>
+        <title>Recipe Selector</title>
         <style>
             body {
-                width: 300px;
+                width: 500px; /* Increased width */
                 padding: 10px;
+                font-family: Arial, sans-serif;
             }
-            #selected-items {
+
+            h1 {
+                font-size: 18px;
                 margin-bottom: 10px;
             }
-            .item {
-                margin-bottom: 5px;
+
+            label {
+                font-weight: bold;
             }
+
             .switch {
                 position: relative;
                 display: inline-block;
                 width: 60px;
                 height: 34px;
             }
+
             .switch input {
                 opacity: 0;
                 width: 0;
                 height: 0;
             }
+
             .slider {
                 position: absolute;
                 cursor: pointer;
@@ -35,6 +42,7 @@
                 transition: 0.4s;
                 border-radius: 34px;
             }
+
             .slider:before {
                 position: absolute;
                 content: "";
@@ -46,11 +54,72 @@
                 transition: 0.4s;
                 border-radius: 50%;
             }
+
             input:checked + .slider {
                 background-color: #2196f3;
             }
+
             input:checked + .slider:before {
                 transform: translateX(26px);
+            }
+
+            #toggleStatus {
+                margin-left: 10px;
+            }
+
+            #recipe-list {
+                margin-top: 20px;
+            }
+
+            #recipe-list h2 {
+                font-size: 16px;
+            }
+
+            #add-recipe-button {
+                margin-top: 10px;
+                margin-bottom: 10px;
+                background-color: #28a745;
+                color: white;
+                padding: 5px 10px;
+                border: none;
+                cursor: pointer;
+            }
+
+            .attribute {
+                margin-top: 5px;
+                margin-bottom: 5px;
+            }
+
+            .attribute button {
+                margin-left: 10px;
+            }
+
+            #data-preview {
+                margin-top: 20px;
+            }
+
+            #data-preview table {
+                width: 100%;
+                border-collapse: collapse;
+            }
+
+            #data-preview th,
+            #data-preview td {
+                border: 1px solid #ddd;
+                padding: 8px;
+            }
+
+            #data-preview th {
+                background-color: #f2f2f2;
+            }
+
+            #save-excel {
+                margin-top: 20px;
+                background-color: #007bff;
+                color: white;
+                padding: 10px;
+                border: none;
+                cursor: pointer;
             }
         </style>
     </head>
@@ -61,9 +130,22 @@
             <span class="slider"></span>
         </label>
         <span id="toggleStatus">Inactive</span>
-        <div id="selected-items"></div>
-        <button id="save-excel">Save as CSV</button>
-        <button id="save-word">Save as Word</button>
+
+        <div id="recipe-list">
+            <h2>Recipes</h2>
+            <button id="add-recipe-button">Add Recipe</button>
+            <div id="recipes"></div>
+        </div>
+
+        <div id="data-preview">
+            <h2>Data Preview</h2>
+            <table id="data-table">
+                <!-- Data preview will be added here -->
+            </table>
+        </div>
+
+        <button id="save-excel">Save as Excel</button>
+
         <script src="popup.js"></script>
     </body>
 </html>

@@ -1,8 +1,8 @@
 {
   "manifest_version": 3,
-  "name": "Highlight and Save Components",
-  "version": "1.0",
-  "description": "Select and save webpage components as Excel or Word documents",
+  "name": "Web Recipe Data Extractor",
+  "version": "2.0",
+  "description": "Create recipes to extract webpage components and export data as Excel.",
   "permissions": ["activeTab", "scripting", "downloads", "storage"],
   "host_permissions": ["<all_urls>"],
   "action": {

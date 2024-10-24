@@ -3,20 +3,30 @@ let highlightedElement = null;
 let isActive = true; // Active by default
 
 function handleMouseMove(event) {
-  if (!isActive) return;
+  if (!isActive) return; // Do nothing if Inactive
 
+  // Remove previous highlight if there was one
   if (highlightedElement) {
     highlightedElement.style.outline = "";
   }
 
+  // Highlight the current element
   highlightedElement = event.target;
   highlightedElement.style.outline = "2px solid green";
 }
 
 function handleClick(event) {
-  if (!isActive) return;
+  if (!isActive) {
+    event.preventDefault(); // Prevent any default action if Inactive
+    return;
+  }
 
-  event.preventDefault();
+  // Check if the clicked element is an anchor (a hyperlink)
+  if (event.target.tagName.toLowerCase() === "a") {
+    event.preventDefault(); // Prevent hyperlink navigation
+  }
+
+  // Collect the text content of the clicked element
   let elementText = event.target.textContent.trim();
   let elementTitle = prompt(
     "Enter a title for this selection:",
@@ -29,7 +39,7 @@ function handleClick(event) {
       content: elementText,
     });
 
-    console.log("Sending data:", selectedElements);
+    // Send the updated selected elements to the background
     chrome.runtime.sendMessage(
       { action: "updateData", data: selectedElements },
       (response) => {
@@ -39,24 +49,23 @@ function handleClick(event) {
   }
 }
 
+// Add event listeners for mousemove and click
 document.addEventListener("mousemove", handleMouseMove);
 document.addEventListener("click", handleClick);
 
+// Handle messages from the popup (Active/Inactive toggle)
 chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
-  console.log("Message received in content script:", message);
-  if (message.action === "getSelectedElements") {
-    console.log("Sending selected elements:", selectedElements);
-    sendResponse(selectedElements);
-  } else if (message.action === "toggleState") {
-    isActive = message.isActive;
+  if (message.action === "toggleState") {
+    isActive = message.isActive; // Update the active state
     if (!isActive && highlightedElement) {
-      highlightedElement.style.outline = "";
+      highlightedElement.style.outline = ""; // Remove highlight when inactive
       highlightedElement = null;
     }
   }
+  sendResponse({ status: "State updated" });
 });
 
-// Initialize state
+// Initialize the active state when the content script runs
 chrome.storage.local.get("isActive", function (result) {
   isActive = result.isActive !== undefined ? result.isActive : true;
 });
