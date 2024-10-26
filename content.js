@@ -1,71 +1,128 @@
 let selectedElements = [];
 let highlightedElement = null;
-let isActive = true; // Active by default
+let isActive = true;
+let isSelectingAttribute = false;
 
-function handleMouseMove(event) {
-  if (!isActive) return; // Do nothing if Inactive
+// Add selection overlay
+const overlay = document.createElement("div");
+overlay.style.cssText = `
+  position: fixed;
+  pointer-events: none;
+  border: 2px solid #4CAF50;
+  background: rgba(76, 175, 80, 0.1);
+  z-index: 10000;
+  display: none;
+`;
+document.body.appendChild(overlay);
 
-  // Remove previous highlight if there was one
-  if (highlightedElement) {
-    highlightedElement.style.outline = "";
-  }
-
-  // Highlight the current element
-  highlightedElement = event.target;
-  highlightedElement.style.outline = "2px solid green";
-}
-
-function handleClick(event) {
-  if (!isActive) {
-    event.preventDefault(); // Prevent any default action if Inactive
+function updateOverlay(element) {
+  if (!element) {
+    overlay.style.display = "none";
     return;
   }
 
-  // Check if the clicked element is an anchor (a hyperlink)
-  if (event.target.tagName.toLowerCase() === "a") {
-    event.preventDefault(); // Prevent hyperlink navigation
-  }
+  const rect = element.getBoundingClientRect();
+  overlay.style.display = "block";
+  overlay.style.top = rect.top + window.scrollY + "px";
+  overlay.style.left = rect.left + window.scrollX + "px";
+  overlay.style.width = rect.width + "px";
+  overlay.style.height = rect.height + "px";
+}
 
-  // Collect the text content of the clicked element
-  let elementText = event.target.textContent.trim();
-  let elementTitle = prompt(
-    "Enter a title for this selection:",
-    elementText.substring(0, 30) + "...",
-  );
+function handleMouseMove(event) {
+  if (!isActive || !isSelectingAttribute) return;
 
-  if (elementTitle) {
-    selectedElements.push({
-      title: elementTitle,
-      content: elementText,
-    });
-
-    // Send the updated selected elements to the background
-    chrome.runtime.sendMessage(
-      { action: "updateData", data: selectedElements },
-      (response) => {
-        console.log("Response from background:", response);
-      },
-    );
+  if (highlightedElement !== event.target) {
+    highlightedElement = event.target;
+    updateOverlay(highlightedElement);
   }
 }
 
-// Add event listeners for mousemove and click
-document.addEventListener("mousemove", handleMouseMove);
-document.addEventListener("click", handleClick);
+function handleClick(event) {
+  if (!isActive || !isSelectingAttribute) return;
 
-// Handle messages from the popup (Active/Inactive toggle)
+  event.preventDefault();
+  event.stopPropagation();
+
+  const selector = getUniqueSelector(event.target);
+  chrome.runtime.sendMessage({
+    action: "elementSelected",
+    selector: selector,
+    text: event.target.textContent.trim(),
+  });
+
+  // Store selection state in storage
+  chrome.storage.local.set({
+    lastSelection: {
+      selector: selector,
+      text: event.target.textContent.trim(),
+    },
+  });
+
+  isSelectingAttribute = false;
+  updateOverlay(null);
+}
+
+function getUniqueSelector(element) {
+  const path = [];
+  while (element && element.nodeType === Node.ELEMENT_NODE) {
+    let selector = element.tagName.toLowerCase();
+
+    if (element.id) {
+      selector = "#" + element.id;
+      path.unshift(selector);
+      break;
+    }
+
+    if (element.className) {
+      const classes = Array.from(element.classList)
+        .filter((c) => !c.startsWith("_")) // Filter out dynamic classes
+        .join(".");
+      if (classes) {
+        selector += "." + classes;
+      }
+    }
+
+    let sibling = element;
+    let nth = 1;
+    while ((sibling = sibling.previousElementSibling)) {
+      if (sibling.tagName === element.tagName) nth++;
+    }
+
+    if (nth > 1) selector += `:nth-of-type(${nth})`;
+
+    path.unshift(selector);
+    element = element.parentElement;
+  }
+
+  return path.join(" > ");
+}
+
 chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
   if (message.action === "toggleState") {
-    isActive = message.isActive; // Update the active state
-    if (!isActive && highlightedElement) {
-      highlightedElement.style.outline = ""; // Remove highlight when inactive
-      highlightedElement = null;
+    isActive = message.isActive;
+    if (!isActive) {
+      isSelectingAttribute = false;
+      updateOverlay(null);
     }
+  } else if (message.action === "startSelection") {
+    isSelectingAttribute = true;
+    // Store selection state
+    chrome.storage.local.set({ isSelectingAttribute: true });
+  } else if (message.action === "stopSelection") {
+    isSelectingAttribute = false;
+    updateOverlay(null);
+    // Clear selection state
+    chrome.storage.local.remove(["isSelectingAttribute", "lastSelection"]);
   }
-  sendResponse({ status: "State updated" });
+  sendResponse({ status: "received" });
+  return true;
 });
 
-// Initialize the active state when the content script runs
-chrome.storage.local.get("isActive", function (result) {
-  isActive = result.isActive !== undefined ? result.isActive : true;
+// Restore selection state on page load
+chrome.storage.local.get(["isSelectingAttribute"], function (result) {
+  isSelectingAttribute = result.isSelectingAttribute || false;
 });
+
+document.addEventListener("mousemove", handleMouseMove);
+document.addEventListener("click", handleClick);

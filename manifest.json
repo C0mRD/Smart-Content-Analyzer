@@ -1,20 +1,19 @@
 {
   "manifest_version": 3,
-  "name": "Web Recipe Data Extractor",
-  "version": "2.0",
-  "description": "Create recipes to extract webpage components and export data as Excel.",
-  "permissions": ["activeTab", "scripting", "downloads", "storage"],
-  "host_permissions": ["<all_urls>"],
+  "name": "Web Scraper Extension",
+  "version": "1.0",
+  "description": "Extract structured data from web pages",
+  "permissions": ["activeTab", "storage", "scripting", "downloads"],
   "action": {
     "default_popup": "popup.html"
-  },
-  "background": {
-    "service_worker": "background.js"
   },
   "content_scripts": [
     {
       "matches": ["<all_urls>"],
       "js": ["content.js"]
     }
-  ]
+  ],
+  "background": {
+    "service_worker": "background.js"
+  }
 }
