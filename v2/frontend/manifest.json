@@ -1,0 +1,19 @@
+{
+  "manifest_version": 3,
+  "name": "Smart Content Analyzer",
+  "version": "1.0",
+  "permissions": ["activeTab", "scripting"],
+  "action": {
+    "default_title": "Analyze Content"
+  },
+  "background": {
+    "service_worker": "background.js"
+  },
+  "content_scripts": [
+    {
+      "matches": ["<all_urls>"],
+      "js": ["content.js"]
+    }
+  ],
+  "host_permissions": ["http://localhost:8000/*"]
+}
