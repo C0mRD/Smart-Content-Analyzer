@@ -1,3 +1,5 @@
+// v1 content.js
+
 let selectedElements = [];
 let highlightedElement = null;
 let isActive = true;

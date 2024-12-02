@@ -8,6 +8,12 @@ import json
 import os
 from dotenv import load_dotenv
 import uvicorn
+from selenium import webdriver
+from selenium.webdriver.common.by import By
+from selenium.webdriver.support.ui import WebDriverWait
+from selenium.webdriver.support import expected_conditions as EC
+from selenium.common.exceptions import TimeoutException
+import time
 
 load_dotenv()
 
@@ -37,6 +43,9 @@ class PageData(BaseModel):
     title: str
     html: str
     hostname: str
+
+class LinkedInRequest(BaseModel):
+    name: str
 
 def identify_page_type(hostname: str) -> str:
     hostname = hostname.lower()
@@ -171,6 +180,168 @@ async def extract_listings(data: PageData):
     except Exception as e:
         print(f"Extraction failed: {str(e)}")
         raise HTTPException(status_code=500, detail=f"Extraction failed: {str(e)}")
+
+@app.post("/linkedin-connect")
+async def linkedin_connect(data: LinkedInRequest):
+    try:
+        # Initialize Chrome in headless mode
+        options = webdriver.ChromeOptions()
+        options.add_argument('--headless')
+        driver = webdriver.Chrome(options=options)
+
+        # Use Gemini to generate a search strategy
+        model = genai.GenerativeModel(
+            model_name="gemini-1.5-flash-8b",
+            generation_config={"temperature": 0.7},
+            safety_settings=safe
+        )
+
+        search_prompt = f"""
+        Generate a LinkedIn search strategy for finding {data.name}.
+        Include:
+        1. Best search URL format
+        2. Potential variations of the name
+        3. Key identifiers to verify the correct profile
+        Return as JSON with these fields.
+        """
+
+        response = model.generate_content(search_prompt)
+        search_strategy = json.loads(response.text)
+
+        # Implement the search and connect logic
+        driver.get(f"https://www.linkedin.com/search/results/people/?keywords={data.name}")
+        
+        # Wait for results to load
+        wait = WebDriverWait(driver, 10)
+        results = wait.until(EC.presence_of_all_elements_located(
+            (By.CSS_SELECTOR, ".search-result-card")
+        ))
+
+        # Process results
+        for result in results[:3]:  # Look at top 3 results
+            name_element = result.find_element(By.CSS_SELECTOR, ".name")
+            if name_element.text.lower() == data.name.lower():
+                connect_button = result.find_element(By.CSS_SELECTOR, ".connect-button")
+                connect_button.click()
+                time.sleep(1)  # Wait for modal
+                
+                # Click send in connect modal
+                send_button = wait.until(EC.element_to_be_clickable(
+                    (By.CSS_SELECTOR, ".send-invite-modal .submit-button")
+                ))
+                send_button.click()
+                
+                driver.quit()
+                return {
+                    "success": True,
+                    "message": f"Connection request sent to {data.name}"
+                }
+
+        driver.quit()
+        return {
+            "success": False,
+            "error": f"Could not find an exact match for {data.name}"
+        }
+
+    except Exception as e:
+        return {
+            "success": False,
+            "error": str(e)
+        }
+
+@app.post("/analyze-page")
+async def analyze_page(data: dict):
+    try:
+        model = genai.GenerativeModel(
+            model_name="gemini-1.5-flash-8b",
+            generation_config={"temperature": 0.3},
+            safety_settings=safe
+        )
+
+        prompt = """
+        Analyze this LinkedIn page HTML and identify reliable selectors for key elements.
+        Focus on finding selectors that are:
+        1. Stable across different LinkedIn versions
+        2. Unique to the specific element
+        3. Based on semantic meaning (aria-labels, roles, data-attributes)
+
+        Specifically identify:
+        1. Global search input
+           - Look for aria-labels containing "Search"
+           - Search-specific class names
+           - Role="combobox" or "search" attributes
+        
+        2. Search result cards
+           - Container elements with profile data
+           - Elements with data-entity-type="PROFILE"
+           - List items in search results
+        
+        3. Connect buttons
+           - Primary action buttons
+           - Elements with "Connect" text
+           - Buttons with specific connection-related aria-labels
+
+        Return JSON with:
+        {
+            "searchInput": ["selector1", "selector2"],
+            "searchResults": ["selector1", "selector2"],
+            "connectButton": ["selector1", "selector2"]
+        }
+        
+        Only include selectors that are highly likely to be unique and stable.
+        """
+
+        response = model.generate_content(prompt + data['html'][:15000])
+        return json.loads(response.text)
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+@app.post("/find-element")
+async def find_element(data: dict):
+    try:
+        model = genai.GenerativeModel(
+            model_name="gemini-1.5-flash-8b",
+            generation_config={"temperature": 0.3},
+            safety_settings=safe
+        )
+
+        prompt = f"""
+        Find the most reliable CSS selector for the {data['elementType']} on this LinkedIn page.
+        Consider:
+        1. Unique identifiers
+        2. Aria labels
+        3. Data attributes
+        4. Class combinations
+        Return only the most specific CSS selector as JSON with a 'selector' field.
+        """
+
+        response = model.generate_content(prompt + data['html'][:15000])
+        return json.loads(response.text)
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+@app.post("/find-connect-button")
+async def find_connect_button(data: dict):
+    try:
+        model = genai.GenerativeModel(
+            model_name="gemini-1.5-flash-8b",
+            generation_config={"temperature": 0.3},
+            safety_settings=safe
+        )
+
+        prompt = """
+        Find the most reliable CSS selector for the Connect button on this LinkedIn profile page.
+        Consider:
+        1. Button text
+        2. Aria labels
+        3. Unique attributes
+        Return only the CSS selector as JSON with a 'selector' field.
+        """
+
+        response = model.generate_content(prompt + json.dumps(data['context']))
+        return json.loads(response.text)
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
 
 if __name__ == "__main__":
     uvicorn.run(app, host="0.0.0.0", port=8000)

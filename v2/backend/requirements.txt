@@ -3,3 +3,5 @@ uvicorn
 google-generativeai
 python-dotenv
 beautifulsoup4
+selenium
+webdriver_manager
